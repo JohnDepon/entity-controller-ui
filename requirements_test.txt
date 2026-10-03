@@ -1,5 +1,4 @@
-pytest
-pytest-watch
-transitions[diagrams]==0.6.9
-pytest-mock
-freezegun
+# Test dependencies (Linux/macOS; see README "Development" for Windows).
+# The pinned harness release determines the Home Assistant version tested.
+pytest-homeassistant-custom-component==0.13.367
+transitions>=0.9.2

@@ -1,6 +1,100 @@
 # Change Log
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project are documented in this file.
+
+<a name="10.0.0"></a>
+## 10.0.0 (2026-10-02) - UI configuration fork
+
+This version is a modified version of Entity Controller 9.7.6 by Daniel Mason
+(https://github.com/danobot/entity-controller), changed in October 2026. It is
+distributed under the same license, the GNU General Public License v3.
+
+### Features
+
+* Entity Controller is a regular integration managed entirely from its page
+  under Settings > Devices & services > Integrations: each controller is an
+  entry (Add controller, Configure, Rename, Reload, Disable, Delete, Download
+  diagnostics, debug logging). Every YAML option is available in Configure,
+  grouped into forms: sensors, controlled entities, timer, service data,
+  active hours, night mode, overrides & blocking, transition behaviours and
+  advanced state strings.
+* Each controller has a device with Activate, Clear block and Enable block
+  buttons and a Stay mode switch. The controller state names are translated
+  in the UI (e.g. "Active (timer)").
+* Saving the options applies them immediately (the controller is reloaded);
+  no Home Assistant restart is needed.
+* Existing `entity_controller:` YAML is imported once, keeping the same entity
+  ids. A repair notice explains that the YAML can be removed; it is never
+  read again.
+* Stay mode (switch, options and the `enable_stay_mode`/`disable_stay_mode`
+  actions) is saved in the controller's settings instead of being lost on
+  restart.
+* New option **hold sensors**: sensors (e.g. mmWave presence) that keep the
+  controlled entities on but never turn them on.
+* New option **maximum hold time**: a sensor that has been on for longer no
+  longer keeps the controlled entities on, so a stuck sensor cannot keep the
+  lights on forever (idea from the pluskal fork, there for hold sensors only;
+  here also for duration trigger sensors). Off by default. The pluskal fork's
+  `hold_max_seconds` YAML key is imported too.
+* A controller resumes its state after a restart or reload: lights it was
+  controlling keep their timer, manually controlled (blocked) lights are left
+  alone. Reloading a controller never switches lights.
+* `stay_mode` attribute on the entity.
+* Brand icon for Home Assistant 2026.3+ and HACS.
+
+### Bug Fixes
+
+* **Lights turned off although a sensor still reported presence** (duration
+  sensors): with several sensors, the first sensor turning off after the timer
+  expired switched everything off. EC now waits until all sensors are off.
+* Timers ran in separate threads (`threading.Timer`) and drove the state machine
+  concurrently with the event loop. A timer firing at the same moment as new
+  motion could turn the lights off. All timers now run on the event loop.
+* Controllers sharing a light ignored each other's changes and could stay
+  `blocked` forever (originally reported in the floris-b fork). Only changes
+  made by the controller itself are ignored now; a new trigger while blocked
+  with the lights off activates again (floris-b fork).
+* Stuck in `blocked` after the block timeout when no rule matched: catch-all
+  transition to `idle` (pluskal fork).
+* An override that was still on could be cleared by `enable()`; an override
+  turned on while constrained was ignored at the start of the active hours
+  (pluskal fork).
+* `start_time` with the lights on while already idle raised an error that Home
+  Assistant retried in a loop (pluskal fork).
+* Time callbacks compared Home Assistant local time with the operating system
+  time zone and could re-fire in a loop when they differed (pluskal fork).
+  Sunrise/sunset are now also computed for Home Assistant's date.
+* `new_state=None` (entity removed) crashed the state callbacks (pluskal fork).
+* A controlled entity becoming `unavailable` was treated as switched off, and
+  its return as manual control that blocked the controller (pluskal/jddayley forks).
+* A duration sensor becoming `unavailable` could keep the lights on forever.
+* `grace_period` was documented but not implemented (restored from the
+  pluskal fork).
+* The `on_enter_constrained` / `on_exit_constrained` behaviours ran twice.
+* Overrides had no effect while in `active_stay_on`.
+* In stay mode a timer was still started and its expiry raised an error.
+* Failed service calls (e.g. unsupported service data) were silently dropped;
+  they are logged now.
+* Entity services ran in a worker thread; they run on the event loop now.
+* `services.yaml` described services that do not exist (`set_stay_on`,
+  `set_stay_off`) and lacked `enable_stay_mode` / `disable_stay_mode`.
+* The YAML schema was never applied (wrong `vol.Schema` arguments); YAML values
+  are now validated and normalized during the import (e.g. unquoted
+  `22:00:00`, `on`/`off` behaviours parsed as booleans, `sensor_type: Duration`).
+* `state_entity` (shown in the documentation) and `service_data_on` were
+  ignored; they are imported now.
+* `state_strings_on`/`state_strings_off` extended one shared list several
+  times and modified the configuration.
+* The start/end time attributes are published as soon as the controller
+  starts (WimImmelman fork).
+* Context ids: the controller's own context check now also matches child contexts.
+
+### Removed
+
+* Obsolete development tooling (Python 3.6 Docker images, the demo
+  configuration, npm release scripts and `loadbeta.sh`, which downloaded the
+  upstream `develop` branch over the installed files) and the old test suite,
+  which could not run. New tests run on the Home Assistant test harness.
 
 <a name="9.7.6"></a>
 ## [9.7.6](https://github.com/danobot/entity-controller/compare/v9.7.5...v9.7.6) (2024-05-04)
