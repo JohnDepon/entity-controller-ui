@@ -125,34 +125,40 @@ if the command fails there, run it from the SSH add-on instead.
 
 ## Option 3 — Publish on GitHub and install with HACS
 
-Do this whenever you decide to publish. The repository already has the
-layout HACS expects (`hacs.json`, a single integration in
-`custom_components/`, a `manifest.json` with all required keys and a brand
-icon in `custom_components/entity_controller/brand/`).
+The GitHub repository is **JohnDepon/entity-controller-ui**, a fork of
+danobot/entity-controller. The repository already has the layout HACS
+expects (`hacs.json`, a single integration in `custom_components/`, a
+`manifest.json` with all required keys pointing to this repository, and a
+brand icon in `custom_components/entity_controller/brand/`).
 
-1. **Fill in your details** in `custom_components/entity_controller/manifest.json`:
-   replace `YOUR-GITHUB-USER` in `documentation` and `issue_tracker`, and
-   set `codeowners` to your GitHub handle (e.g. `["@your-name"]`). Commit.
-2. **Create a public repository** on GitHub (e.g. `entity-controller-ui`),
-   without README/license (they exist already), and push:
+1. **Create the fork** (once): open https://github.com/danobot/entity-controller,
+   click **Fork**, owner *JohnDepon*, repository name `entity-controller-ui`,
+   keep *Copy the master branch only* ticked → *Create fork*. A fork of a
+   public repository is always public.
+2. **Push** (the `origin` remote is already set up in this repository):
 
    ```bash
-   git remote add github https://github.com/YOUR-GITHUB-USER/entity-controller-ui.git
-   git push -u github master
+   git push -u origin master
    ```
 
-3. On the repository page set a **description** (shown by HACS) and
-   **topics** such as `home-assistant`, `hacs`, `homeassistant-integration`.
-4. Wait for the **Validate** workflow (Actions tab) to pass: it runs the
-   HACS validation, Home Assistant's `hassfest` and the tests.
+   If `origin` is missing (e.g. in a fresh clone of the original), add it
+   first with `git remote add origin https://github.com/JohnDepon/entity-controller-ui.git`.
+3. In the fork's **Settings**: enable *Issues* (General → Features; forks
+   have them off, and the integration's issue link points there). On the
+   repository page set a **description** (shown by HACS) and **topics** such
+   as `home-assistant`, `hacs`, `homeassistant-integration`.
+4. Open the **Actions** tab and enable workflows (paused in forks), then
+   wait for the **Validate** workflow to pass: it runs the HACS validation,
+   Home Assistant's `hassfest` and the tests.
 5. **Create a release** (recommended): Releases → *Draft a new release* →
    tag `v10.0.0` → paste the notes from `CHANGELOG.md` → *Publish*. HACS
    offers the five latest releases; without releases it installs the default
    branch.
 6. **Install in Home Assistant:** HACS → ⋮ (top right) → *Custom
-   repositories* → Repository `https://github.com/YOUR-GITHUB-USER/entity-controller-ui`,
+   repositories* → Repository `https://github.com/JohnDepon/entity-controller-ui`,
    Type *Integration* → *Add*. Open the new *Entity Controller* entry (check
-   that it shows your repository), *Download*, then restart Home Assistant.
+   that it shows JohnDepon/entity-controller-ui), *Download*, then restart
+   Home Assistant.
 
 Submitting the fork to the HACS *default* store is not recommended: the
 original Entity Controller is already listed there with the same domain.
