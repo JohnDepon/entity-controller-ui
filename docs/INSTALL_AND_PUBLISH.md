@@ -169,10 +169,18 @@ original Entity Controller is already listed there with the same domain.
    then `pytest`).
 2. Increase `version` in `custom_components/entity_controller/manifest.json`
    (the only place holding the version) and add a section to `CHANGELOG.md`.
-3. Commit, tag `vX.Y.Z` and push the tag.
-4. Self-hosted: run the install script with the new tag's archive URL.
-   GitHub/HACS: create a GitHub release for the tag; HACS then offers the
-   update.
+3. Commit, then tag and push both:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin master vX.Y.Z
+   ```
+
+4. GitHub/HACS: the *Release* workflow creates the GitHub release for the
+   tag automatically, with that version's `CHANGELOG.md` section as notes
+   (it fails if the tag does not match the version in `manifest.json`).
+   HACS then offers the update. Self-hosted: run the install script with the
+   new tag's archive URL.
 
 ## License obligations when sharing it
 

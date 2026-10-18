@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the GitHub release from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          manifest="$(jq -r .version custom_components/entity_controller/manifest.json)"
+          if [ "$manifest" != "$version" ]; then
+            echo "::error::Tag $TAG does not match manifest.json version $manifest"
+            exit 1
+          fi
+          awk -v v="$version" 'index($0, "## " v " ") == 1 {f=1; next} f && /^<a name=/ {exit} f' CHANGELOG.md > notes.md
+          gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag

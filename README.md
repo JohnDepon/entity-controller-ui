@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat-square)](COPYING)
 
-# Entity Controller (UI edition)
+# Entity Controller with UI
 
 Entity Controller (EC) implements "when this, then that, for x amount of
 time" with a finite state machine that does not interfere with the rest of
