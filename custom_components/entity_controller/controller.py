@@ -35,6 +35,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Callable
 
 from homeassistant.const import (
+    EVENT_LOGBOOK_ENTRY,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
     SUN_EVENT_SUNRISE,
@@ -1436,6 +1437,18 @@ class Model:
             attributes["delayed_until"] = dt.as_local(until)
         self.entity.do_update()
 
+    def _delayed_log(self, message: str) -> None:
+        """Entry in the controller's Activity (logbook), which otherwise only
+        shows the controller's own state changes."""
+        self.hass.bus.async_fire(
+            EVENT_LOGBOOK_ENTRY,
+            {"name": self.name, "message": message, "domain": DOMAIN, "entity_id": self.entity.entity_id},
+            context=self.context,
+        )
+
+    def _names(self, entity_ids: list[str]) -> str:
+        return ", ".join(s.name if (s := self.hass.states.get(e)) else e for e in entity_ids)
+
     def _delayed_start(self):
         if self.delayedEntities and not self._delayed_running and self._delayed_handle is None:
             self._delayed_handle = event.async_call_later(
@@ -1459,6 +1472,10 @@ class Model:
             return
         for e in self._delayed_running:
             self.call_service(e, "turn_on")
+        self._delayed_log(
+            f"turned on {self._names(self._delayed_running)} "
+            f"(delayed entities, on for at least {self.delayed_min_on} s)"
+        )
         self._delayed_schedule_min(self.delayed_min_on)
 
     def _delayed_schedule_min(self, seconds: float) -> None:
@@ -1478,6 +1495,7 @@ class Model:
             self._delayed_turn_off()
         else:
             self._delayed_status("running_until_idle")
+            self._delayed_log(f"keeps {self._names(self._delayed_running)} on until the room is empty")
 
     def _delayed_exit(self):
         """The controller leaves active (nobody there any more)."""
@@ -1490,6 +1508,7 @@ class Model:
         # else: _delayed_min_expired turns them off
 
     def _delayed_turn_off(self):
+        self._delayed_log(f"turned off {self._names(self._delayed_running)} (delayed entities)")
         for e in self._delayed_running:
             self.call_service(e, "turn_off")
         self._delayed_running = []

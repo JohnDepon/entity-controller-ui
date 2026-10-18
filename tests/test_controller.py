@@ -538,6 +538,10 @@ async def test_delayed_fan_not_started_when_leaving_early(hass, freezer, entitie
 
 
 async def test_delayed_fan_stays_on_while_still_there(hass, freezer, entities):
+    from homeassistant.const import EVENT_LOGBOOK_ENTRY
+    from pytest_homeassistant_custom_component.common import async_capture_events
+
+    logbook = async_capture_events(hass, EVENT_LOGBOOK_ENTRY)
     await setup_controller(hass, freezer, **DELAYED)
     await set_state(hass, MOTION, "on")
     await advance(hass, freezer, 121)
@@ -547,6 +551,13 @@ async def test_delayed_fan_stays_on_while_still_there(hass, freezer, entities):
     await set_state(hass, MOTION, "off")  # nobody there any more
     assert state(hass, LIGHT) == "off"
     assert state(hass, FAN) == "off"
+
+    # Shown in the controller's Activity (logbook).
+    assert all(e.data["entity_id"] == EC for e in logbook)
+    messages = [e.data["message"] for e in logbook]
+    assert [m.split(" ")[0] for m in messages] == ["turned", "keeps", "turned"]
+    assert "on for at least 300 s" in messages[0]
+    assert messages[2].startswith("turned off")
 
 
 async def test_delayed_fan_back_in_the_room_during_min_time(hass, freezer, entities):

@@ -186,6 +186,8 @@ Assistant restarts, so it still turns off when its time is up.
 The controller entity's details show what they are doing: *Delayed status*
 (Off, Waiting, On (minimum time), On (until the room is empty)) and
 *Delayed until* (when they turn on, or when the minimum time ends).
+Its *Activity* (logbook) lists when the controller turned them on, kept
+them on until the room was empty, and turned them off.
 
 ### Active hours
 

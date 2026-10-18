@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="10.1.4"></a>
+## 10.1.4 (2026-10-18)
+
+### Features
+
+* The controller's Activity (logbook) shows when it turned its delayed
+  entities on, kept them on until the room was empty, and turned them off.
+
 <a name="10.1.3"></a>
 ## 10.1.3 (2026-10-18)
 
