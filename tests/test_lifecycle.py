@@ -10,6 +10,7 @@ async def test_reload_resumes_active_timer_without_switching(hass, freezer, enti
     await set_state(hass, MOTION, "on")
     await set_state(hass, MOTION, "off")
     assert state(hass) == "active_timer"
+    triggered_at = hass.states.get(EC).attributes["last_triggered_at"]
 
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
@@ -17,6 +18,10 @@ async def test_reload_resumes_active_timer_without_switching(hass, freezer, enti
     # Still controlling the light, which was not switched off by the reload.
     assert state(hass) == "active_timer"
     assert state(hass, LIGHT) == "on"
+    # The details still show the real last trigger, not the reload.
+    attrs = hass.states.get(EC).attributes
+    assert attrs["last_triggered_by"] == MOTION
+    assert attrs["last_triggered_at"] == triggered_at
     await advance(hass, freezer, 61)
     assert state(hass) == "idle"
     assert state(hass, LIGHT) == "off"

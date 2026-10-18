@@ -181,6 +181,7 @@ class EntityController(RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         self.model.restored_state = last_state.state if last_state else None
+        self.model.restored_attributes = dict(last_state.attributes) if last_state else {}
         extra = await self.async_get_last_extra_data()
         self.model.restored_extra = extra.as_dict() if extra else None
         # Per controller logger: custom_components.entity_controller.<object id>

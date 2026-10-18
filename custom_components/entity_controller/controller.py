@@ -353,6 +353,8 @@ class Model:
         self._delayed_min_until: datetime | None = None
         # Saved delayed entity state (see delayed_restore_data).
         self.restored_extra: dict[str, Any] | None = None
+        # Attributes of the entity before the restart/reload.
+        self.restored_attributes: dict[str, Any] = {}
         self.timer_handle: Callable[[], None] | None = None
         self.block_timer_handle: Callable[[], None] | None = None
         self.sensor_type = SENSOR_TYPE_EVENT
@@ -487,6 +489,10 @@ class Model:
         # the delayed entities again.
         self._delayed_restore()
         self._initial_transition()
+        # Keep showing the real last trigger, not the restart/reload.
+        for key in ("last_triggered_by", "last_triggered_at"):
+            if key in self.restored_attributes:
+                self.update(**{key: self.restored_attributes[key]})
         self.config_times(config)
 
     def _initial_transition(self) -> None:

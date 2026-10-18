@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="10.1.3"></a>
+## 10.1.3 (2026-10-18)
+
+### Bug Fixes
+
+* After a reload (saving the options) or a restart, the controller's details
+  no longer showed *Last triggered by*, and *Last triggered at* showed the
+  time of the restart. Both now keep the real last trigger.
+
 <a name="10.1.2"></a>
 ## 10.1.2 (2026-10-18)
 
