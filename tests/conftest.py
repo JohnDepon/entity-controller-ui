@@ -25,6 +25,7 @@ LIGHT2 = "input_boolean.light2"
 MOTION = "binary_sensor.motion"
 PRESENCE = "binary_sensor.presence"
 OVERRIDE = "input_boolean.override"
+FAN = "input_boolean.fan"
 EC = "entity_controller.test"
 
 
@@ -49,7 +50,7 @@ async def entities(hass: HomeAssistant) -> None:
     assert await async_setup_component(
         hass,
         "input_boolean",
-        {"input_boolean": {"light": None, "light2": None, "override": None}},
+        {"input_boolean": {"light": None, "light2": None, "override": None, "fan": None}},
     )
     hass.states.async_set(MOTION, "off")
     hass.states.async_set(PRESENCE, "off")

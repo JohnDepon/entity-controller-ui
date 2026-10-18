@@ -47,6 +47,9 @@ from .const import (
     CONF_BLOCK_TIMEOUT,
     CONF_CONTROL_ENTITIES,
     CONF_DELAY,
+    CONF_DELAYED_AFTER,
+    CONF_DELAYED_ENTITIES,
+    CONF_DELAYED_MIN_ON,
     CONF_DISABLE_BLOCK,
     CONF_ENABLED,
     CONF_END_TIME,
@@ -278,6 +281,30 @@ def _entities_apply(options, user_input):
         options[key] = _list(user_input.get(key))
     if not options[CONF_CONTROL_ENTITIES] and not options[CONF_TRIGGER_ON_ACTIVATE]:
         return {"base": "no_entities"}
+    return {}
+
+
+def _delayed_schema(options):
+    return vol.Schema(
+        {
+            vol.Optional(CONF_DELAYED_ENTITIES): ENTITIES,
+            vol.Optional(CONF_DELAYED_AFTER): _seconds(),
+            vol.Optional(CONF_DELAYED_MIN_ON): _seconds(),
+        }
+    )
+
+
+def _delayed_values(options):
+    return _drop_empty({CONF_DELAYED_ENTITIES: options[CONF_DELAYED_ENTITIES]}) | {
+        CONF_DELAYED_AFTER: options[CONF_DELAYED_AFTER],
+        CONF_DELAYED_MIN_ON: options[CONF_DELAYED_MIN_ON],
+    }
+
+
+def _delayed_apply(options, user_input):
+    options[CONF_DELAYED_ENTITIES] = _list(user_input.get(CONF_DELAYED_ENTITIES))
+    options[CONF_DELAYED_AFTER] = _int_or_none(user_input.get(CONF_DELAYED_AFTER)) or 0
+    options[CONF_DELAYED_MIN_ON] = _int_or_none(user_input.get(CONF_DELAYED_MIN_ON)) or 0
     return {}
 
 
@@ -514,6 +541,7 @@ def _advanced_apply(options, user_input):
 SECTIONS: dict[str, Section] = {
     "triggers": Section(_triggers_schema, _triggers_values, _triggers_apply),
     "entities": Section(_entities_schema, _entities_values, _entities_apply),
+    "delayed": Section(_delayed_schema, _delayed_values, _delayed_apply),
     "timer": Section(_timer_schema, _timer_values, _timer_apply),
     "service_data": Section(_service_data_schema, _service_data_values, _service_data_apply),
     "constraints": Section(_constraints_schema, _constraints_values, _constraints_apply),
@@ -587,6 +615,9 @@ class _ControllerSteps:
 
     async def async_step_entities(self, user_input=None):
         return await self._async_section("entities", user_input)
+
+    async def async_step_delayed(self, user_input=None):
+        return await self._async_section("delayed", user_input)
 
     async def async_step_timer(self, user_input=None):
         return await self._async_section("timer", user_input)

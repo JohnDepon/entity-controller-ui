@@ -31,7 +31,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import RestoredExtraData, RestoreEntity
 
 from .const import (
     CONF_DELAY,
@@ -131,6 +131,11 @@ class EntityController(RestoreEntity):
         return ICONS.get(self.model.state, "mdi:eye")
 
     @property
+    def extra_restore_state_data(self) -> RestoredExtraData:
+        """Saved (not shown) across reloads and restarts."""
+        return RestoredExtraData(self.model.delayed_restore_data())
+
+    @property
     def extra_state_attributes(self):
         """Return the state attributes of the entity."""
         return self.attributes.copy()
@@ -172,6 +177,8 @@ class EntityController(RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         self.model.restored_state = last_state.state if last_state else None
+        extra = await self.async_get_last_extra_data()
+        self.model.restored_extra = extra.as_dict() if extra else None
         # Per controller logger: custom_components.entity_controller.<object id>
         self.model.log = logging.getLogger(f"{__package__}.{self.entity_id.split('.', 1)[1]}")
         self.may_update = True

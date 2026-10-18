@@ -3,6 +3,7 @@ from homeassistant.core import Context
 
 from .conftest import (
     EC,
+    FAN,
     LIGHT,
     LIGHT2,
     MOTION,
@@ -464,3 +465,96 @@ async def test_without_max_hold_time_sensor_holds_indefinitely(hass, freezer, en
     await set_state(hass, MOTION, "off")
     await advance(hass, freezer, 24 * 3600)
     assert state(hass, LIGHT) == "on"
+
+
+async def test_service_data_templates(hass, freezer, entities):
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    calls = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set("light.bath", "off")
+    hass.states.async_set("input_boolean.dnd", "on")
+    await setup_controller(
+        hass,
+        freezer,
+        entities=["light.bath"],
+        delay=60,
+        service_data={
+            "brightness_pct": "{{ 50 if is_state('input_boolean.dnd', 'on') else 100 }}",
+            "transition": 2,
+            "broken": "{{ states( }}",
+        },
+    )
+    await set_state(hass, MOTION, "on")
+    await set_state(hass, MOTION, "off")
+    # Rendered at call time; a broken template only drops its own key.
+    assert calls[-1].data == {"entity_id": "light.bath", "brightness_pct": 50, "transition": 2}
+
+    await advance(hass, freezer, 61)
+    hass.states.async_set("input_boolean.dnd", "off")
+    await set_state(hass, MOTION, "on")
+    assert calls[-1].data["brightness_pct"] == 100
+
+
+DELAYED = {"sensor_type": "duration", "delay": 60, "delayed_entities": [FAN], "delayed_after": 120, "delayed_min_on": 300}
+
+
+async def test_delayed_fan_runs_min_time_after_leaving(hass, freezer, entities):
+    await setup_controller(hass, freezer, **DELAYED)
+    await set_state(hass, MOTION, "on")
+    await advance(hass, freezer, 119)
+    assert state(hass, FAN) == "off"
+    await advance(hass, freezer, 2)  # stayed longer than 120 s
+    assert state(hass, FAN) == "on"
+
+    await set_state(hass, MOTION, "off")  # leave: light off, fan keeps running
+    assert state(hass, LIGHT) == "off"
+    assert state(hass, FAN) == "on"
+    await advance(hass, freezer, 298)
+    assert state(hass, FAN) == "on"
+    await advance(hass, freezer, 3)  # 300 s after it was turned on
+    assert state(hass, FAN) == "off"
+
+
+async def test_delayed_fan_not_started_when_leaving_early(hass, freezer, entities):
+    await setup_controller(hass, freezer, **DELAYED)
+    await set_state(hass, MOTION, "on")
+    await advance(hass, freezer, 30)
+    await set_state(hass, MOTION, "off")
+    await advance(hass, freezer, 31)
+    assert state(hass, LIGHT) == "off"
+    await advance(hass, freezer, 300)
+    assert state(hass, FAN) == "off"
+
+
+async def test_delayed_fan_stays_on_while_still_there(hass, freezer, entities):
+    await setup_controller(hass, freezer, **DELAYED)
+    await set_state(hass, MOTION, "on")
+    await advance(hass, freezer, 121)
+    await advance(hass, freezer, 480)  # well past the 300 s minimum, still there
+    assert state(hass, FAN) == "on"
+    await set_state(hass, MOTION, "off")  # nobody there any more
+    assert state(hass, LIGHT) == "off"
+    assert state(hass, FAN) == "off"
+
+
+async def test_delayed_fan_back_in_the_room_during_min_time(hass, freezer, entities):
+    await setup_controller(hass, freezer, **DELAYED)
+    await set_state(hass, MOTION, "on")
+    await advance(hass, freezer, 121)
+    await set_state(hass, MOTION, "off")  # leave, fan keeps running
+    await advance(hass, freezer, 80)
+    await set_state(hass, MOTION, "on")  # back before the minimum ends
+    await advance(hass, freezer, 300)  # minimum over while there
+    assert state(hass, FAN) == "on"
+    await set_state(hass, MOTION, "off")
+    assert state(hass, FAN) == "off"
+
+
+async def test_delayed_fan_already_on_is_left_alone(hass, freezer, entities):
+    await setup_controller(hass, freezer, **DELAYED)
+    await hass.services.async_call("input_boolean", "turn_on", {"entity_id": FAN}, blocking=True)
+    await set_state(hass, MOTION, "on")
+    await advance(hass, freezer, 121)
+    await set_state(hass, MOTION, "off")
+    await advance(hass, freezer, 600)
+    assert state(hass, FAN) == "on"

@@ -41,8 +41,8 @@ from homeassistant.const import (
     SUN_EVENT_SUNSET,
 )
 from homeassistant.core import Context, CoreState, HomeAssistant, State, callback
-from homeassistant.exceptions import ServiceNotFound
-from homeassistant.helpers import event
+from homeassistant.exceptions import ServiceNotFound, TemplateError
+from homeassistant.helpers import event, template
 from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import dt, slugify
 import homeassistant.util.uuid as uuid_util
@@ -60,6 +60,9 @@ from .const import (
     CONF_CONTROL_STATES_ON,
     CONF_DAY_LENGTH,
     CONF_DELAY,
+    CONF_DELAYED_AFTER,
+    CONF_DELAYED_ENTITIES,
+    CONF_DELAYED_MIN_ON,
     CONF_DISABLE_BLOCK,
     CONF_ENABLED,
     CONF_END_TIME,
@@ -340,6 +343,16 @@ class Model:
         self.overrideEntities: list[str] = []
         self.triggerOnDeactivate: list[str] = []
         self.triggerOnActivate: list[str] = []
+        # Delayed entities (e.g. a bathroom fan), see _delayed_start.
+        self.delayedEntities: list[str] = []
+        self.delayed_after = 0
+        self.delayed_min_on = 0
+        self._delayed_handle: Callable[[], None] | None = None
+        self._delayed_running: list[str] = []
+        self._delayed_min_done = False
+        self._delayed_min_until: datetime | None = None
+        # Saved delayed entity state (see delayed_restore_data).
+        self.restored_extra: dict[str, Any] | None = None
         self.timer_handle: Callable[[], None] | None = None
         self.block_timer_handle: Callable[[], None] | None = None
         self.sensor_type = SENSOR_TYPE_EVENT
@@ -428,6 +441,7 @@ class Model:
         self._cancel_timer()
         self._cancel_block_timer()
         self._cancel_hold_check()
+        self._cancel_delayed()
         self._cancel_time_callbacks()
         while self._unsubs:
             self._unsubs.pop()()
@@ -466,6 +480,9 @@ class Model:
             self.update(hold_sensor_entities=self.holdSensorEntities)
         if self.overrideEntities:
             self.update(override_entities=self.overrideEntities)
+        # Before the initial transition, so resuming 'active' does not start
+        # the delayed entities again.
+        self._delayed_restore()
         self._initial_transition()
         self.config_times(config)
 
@@ -1038,12 +1055,14 @@ class Model:
         # it in stay mode, where its expiry raised a MachineError.
         if self.is_active_timer():
             self._start_timer()
+        self._delayed_start()
 
     def on_exit_active(self):
         self.log.debug("Exiting active")
         self.log.debug("on_exit_active :: cancelling timer")
         self._cancel_timer()  # cancel previous timer
         self._cancel_hold_check()
+        self._delayed_exit()
         self.update(delay=self.lightParams.get(CONF_DELAY))
         self.do_transition_behaviour(CONF_ON_EXIT_ACTIVE)
 
@@ -1287,6 +1306,9 @@ class Model:
         self.block_timeout = config.get(CONF_BLOCK_TIMEOUT) or None
         self.grace_period = config.get(CONF_GRACE_PERIOD) or None
         self.max_hold_time = config.get(CONF_MAX_HOLD_TIME) or None
+        self.delayedEntities = list(config.get(CONF_DELAYED_ENTITIES) or [])
+        self.delayed_after = config.get(CONF_DELAYED_AFTER) or 0
+        self.delayed_min_on = config.get(CONF_DELAYED_MIN_ON) or 0
         self.disable_block = bool(config.get(CONF_DISABLE_BLOCK, False))
         self.backoff = bool(config.get(CONF_BACKOFF, False))
         self.stay = bool(config.get(CONF_STAY_MODE, False))
@@ -1364,6 +1386,108 @@ class Model:
     # =====================================================
     #    H E L P E R   F U N C T I O N S        ( N E W )
     # =====================================================
+
+    def _render_templates(self, value):
+        """Render Home Assistant templates in service data, e.g.
+        `brightness_pct: "{{ 50 if is_state('input_boolean.dnd', 'on') else 100 }}"`.
+        A key whose template fails is left out (and logged)."""
+        if isinstance(value, dict):
+            rendered = {}
+            for key, item in value.items():
+                try:
+                    rendered[key] = self._render_templates(item)
+                except TemplateError as err:
+                    self.log.error("Service data '%s' could not be rendered: %s", key, err)
+            return rendered
+        if isinstance(value, list):
+            return [self._render_templates(item) for item in value]
+        if isinstance(value, str) and template.is_template_string(value):
+            return template.Template(value, self.hass).async_render(parse_result=True)
+        return value
+
+    # Delayed entities: turned on once the controller has been active for
+    # delayed_after seconds, then kept on for at least delayed_min_on seconds
+    # (even if the controller goes idle meanwhile) and after that for as long
+    # as the controller stays active.
+
+    def _cancel_delayed(self):
+        if self._delayed_handle is not None:
+            self._delayed_handle()
+            self._delayed_handle = None
+
+    def _delayed_start(self):
+        if self.delayedEntities and not self._delayed_running and self._delayed_handle is None:
+            self._delayed_handle = event.async_call_later(
+                self.hass, self.delayed_after, self._delayed_turn_on
+            )
+
+    @callback
+    def _delayed_turn_on(self, _now=None):
+        self._delayed_handle = None
+        if not self._running or not self.is_active(allow_substates=True):
+            return
+        # Entities somebody already switched on are left alone.
+        self._delayed_running = [
+            e
+            for e in self.delayedEntities
+            if not self.matches(self._entity_state(e, "Delayed"), self.CONTROL_ON_STATE)
+        ]
+        for e in self._delayed_running:
+            self.call_service(e, "turn_on")
+        self._delayed_schedule_min(self.delayed_min_on)
+
+    def _delayed_schedule_min(self, seconds: float) -> None:
+        self._delayed_min_done = False
+        self._delayed_min_until = dt.utcnow() + timedelta(seconds=seconds)
+        self._delayed_handle = event.async_call_later(
+            self.hass, seconds, self._delayed_min_expired
+        )
+
+    @callback
+    def _delayed_min_expired(self, _now=None):
+        self._delayed_handle = None
+        self._delayed_min_done = True
+        self._delayed_min_until = None
+        if not self.is_active(allow_substates=True):
+            self._delayed_turn_off()
+
+    def _delayed_exit(self):
+        """The controller leaves active (nobody there any more)."""
+        if not self._delayed_running:
+            self._cancel_delayed()  # left before delayed_after: never turn on
+        elif self._delayed_min_done:
+            self._delayed_turn_off()
+        # else: _delayed_min_expired turns them off
+
+    def _delayed_turn_off(self):
+        for e in self._delayed_running:
+            self.call_service(e, "turn_off")
+        self._delayed_running = []
+
+    def delayed_restore_data(self) -> dict[str, Any]:
+        """Running delayed entities, saved by the entity across reloads and restarts."""
+        until = None if self._delayed_min_done else self._delayed_min_until
+        return {
+            "delayed_running": list(self._delayed_running),
+            "delayed_min_until": until.isoformat() if until else None,
+        }
+
+    def _delayed_restore(self) -> None:
+        """Take over delayed entities that were running before a reload/restart."""
+        data = self.restored_extra or {}
+        running = [
+            e
+            for e in data.get("delayed_running") or []
+            if e in self.delayedEntities
+            and self.matches(self._entity_state(e, "Delayed"), self.CONTROL_ON_STATE)
+        ]
+        if not running:
+            return
+        self._delayed_running = running
+        until = dt.parse_datetime(data["delayed_min_until"]) if data.get("delayed_min_until") else None
+        remaining = (until - dt.utcnow()).total_seconds() if until else 0
+        # Expired minimum: fires right away and turns them off unless active.
+        self._delayed_schedule_min(max(remaining, 0))
 
     def handleTriggerOnDeactivateEntities(self):
         """ Entities that are defined outside of control entities via the `triggerOnDetivate` key. """
@@ -1556,7 +1680,8 @@ class Model:
                 entity,
                 domain,
             )
-        params = copy.deepcopy(service_data)
+        service_data = self._render_templates(service_data)
+        params = dict(service_data)
         params["entity_id"] = entity
         # Service calls run as tasks on the event loop once the current
         # transition has completed (not eagerly, so the resulting state

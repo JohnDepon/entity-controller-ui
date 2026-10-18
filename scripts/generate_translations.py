@@ -87,6 +87,24 @@ SECTIONS = {
             "trigger_on_deactivate": "Optional. Entities (usually scripts) on which turn_on is called when the controller deactivates.",
         },
     },
+    "delayed": {
+        "title": "Delayed entities",
+        "description": (
+            "Entities, e.g. a bathroom fan, that are turned on only when the "
+            "controller stays active for a while, and then keep running for a "
+            "minimum time even if the controlled entities turn off meanwhile."
+        ),
+        "data": {
+            "delayed_entities": "Delayed entities",
+            "delayed_after": "Turn on after",
+            "delayed_min_on": "Keep on for at least",
+        },
+        "data_description": {
+            "delayed_entities": "Turned on with turn_on and off with turn_off. Entities that are already on at that moment are left alone.",
+            "delayed_after": "Seconds the controller must stay active (someone stays in the room). If it goes idle earlier, they are not turned on.",
+            "delayed_min_on": "Seconds they run at least, even if the controller goes idle meanwhile. Afterwards they stay on for as long as the controller stays active.",
+        },
+    },
     "timer": {
         "title": "Timer",
         "description": "How long the controlled entities stay on.",
@@ -110,7 +128,9 @@ SECTIONS = {
         "description": (
             "Extra data passed to the turn_on and turn_off service calls, e.g. "
             "`brightness_pct: 50` or `transition: 2`. All controlled entities must "
-            "support the given keys."
+            "support the given keys. Values can be templates that depend on other "
+            "entities, e.g. `brightness_pct: \"{{ 50 if is_state('input_boolean.dnd', "
+            "'on') else 100 }}\"`; they are evaluated each time the entities are switched."
         ),
         "data": {
             "service_data": "turn_on service data",

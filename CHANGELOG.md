@@ -31,6 +31,11 @@ distributed under the same license, the GNU General Public License v3.
   restart.
 * New option **hold sensors**: sensors (e.g. mmWave presence) that keep the
   controlled entities on but never turn them on.
+* Service data values can be **templates** (e.g. a brightness that depends
+  on a "do not disturb" switch), evaluated each time entities are switched.
+* New **delayed entities** (e.g. a bathroom fan): turned on after the
+  controller has been active for a while, kept on for a minimum time even if
+  the lights turn off, and afterwards while the controller stays active.
 * New option **maximum hold time**: a sensor that has been on for longer no
   longer keeps the controlled entities on, so a stuck sensor cannot keep the
   lights on forever (idea from the pluskal fork, there for hold sensors only;

@@ -38,6 +38,9 @@ from .const import (
     CONF_CONTROL_ENTITY,
     CONF_DAY_LENGTH,
     CONF_DELAY,
+    CONF_DELAYED_AFTER,
+    CONF_DELAYED_ENTITIES,
+    CONF_DELAYED_MIN_ON,
     CONF_DISABLE_BLOCK,
     CONF_ENABLED,
     CONF_END_TIME,
@@ -122,6 +125,10 @@ def default_options() -> dict[str, Any]:
         CONF_STATE_ENTITIES: [],
         CONF_TRIGGER_ON_ACTIVATE: [],
         CONF_TRIGGER_ON_DEACTIVATE: [],
+        # Delayed entities (e.g. a bathroom fan)
+        CONF_DELAYED_ENTITIES: [],
+        CONF_DELAYED_AFTER: 0,
+        CONF_DELAYED_MIN_ON: 0,
         # Timer
         CONF_DELAY: DEFAULT_DELAY,
         CONF_STAY_MODE: False,

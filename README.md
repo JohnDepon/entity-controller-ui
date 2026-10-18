@@ -121,6 +121,38 @@ details.
 calls, e.g. `brightness_pct: 50` or `transition: 2`. They are edited as YAML
 in the form. For scripts use `variables:`.
 
+Values can be [templates](https://www.home-assistant.io/docs/configuration/templating/),
+evaluated every time the controller switches the entities, so the data can
+depend on other entities. The motion logic is unchanged:
+
+```yaml
+# 50 % while "do not disturb" is on, otherwise 100 %
+brightness_pct: "{{ 50 if is_state('input_boolean.dnd', 'on') else 100 }}"
+transition: 2
+```
+
+A template that fails is logged and only its key is left out.
+
+### Delayed entities
+
+`delayed_entities`, `delayed_after`, `delayed_min_on` (new): entities such as
+a bathroom fan that turn on only if the controller stays active for
+*Turn on after* seconds, then run for at least *Keep on for at least*
+seconds, and after that for as long as the controller stays active.
+
+Bathroom example (light delay X, fan after Y, fan minimum Z):
+
+* Leave before Y → the fan never turns on.
+* Stay longer than Y → the fan turns on; leave before Z → the light turns
+  off as usual, the fan keeps running until Z is over.
+* Stay longer than Z → the fan keeps running until the controller goes idle
+  (no more movement), together with the light.
+
+Entities that are already on when Y is reached are left alone. They are
+switched with plain `turn_on`/`turn_off` (no service data).
+A running fan is remembered across reloads (saving the options) and Home
+Assistant restarts, so it still turns off when its time is up.
+
 ### Active hours
 
 `start_time` / `end_time`: outside this window the controller is
