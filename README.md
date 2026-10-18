@@ -21,10 +21,40 @@ This is a fork of [danobot/entity-controller](https://github.com/danobot/entity-
 * adds *hold sensors* (e.g. mmWave presence sensors that keep the light on but
   never switch it on).
 
-Installation, self-hosting and publishing to HACS are described in
-[docs/INSTALL_AND_PUBLISH.md](docs/INSTALL_AND_PUBLISH.md).
-
 ---
+
+## Installation with HACS
+
+Requires Home Assistant 2025.1 or newer and [HACS](https://hacs.xyz/).
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=JohnDepon&repository=entity-controller-ui&category=integration)
+
+The button above does steps 2 and 3 for you. To do it by hand:
+
+1. **Remove the original Entity Controller first**, if you have it: in HACS
+   open *Entity Controller* (by danobot) → ⋮ → *Remove*. Both use the same
+   folder (`custom_components/entity_controller`). Your `entity_controller:`
+   YAML is kept and imported later.
+2. **Add this repository to HACS:** HACS → ⋮ (top right) → *Custom
+   repositories* → Repository `https://github.com/JohnDepon/entity-controller-ui`,
+   Type *Integration* → *Add*.
+3. **Download it:** search HACS for **Entity Controller with UI**, open it,
+   check that it shows `JohnDepon/entity-controller-ui`, then *Download* (the
+   latest version is preselected).
+4. **Restart Home Assistant:** Settings → System → ⏻ (top right) → *Restart
+   Home Assistant*.
+5. **Add your first controller:** Settings → Devices & services → *Add
+   integration* → search **Entity Controller with UI**. Further controllers are
+   added with **Add controller** on the integration page. If you had
+   `entity_controller:` YAML, those controllers are already imported and
+   listed there (see [Migrating](#migrating-from-the-original-entity-controller--yaml)).
+
+**Updates:** HACS shows new versions under Settings → Updates; install the
+update, then restart Home Assistant. The [release notes](https://github.com/JohnDepon/entity-controller-ui/releases)
+list the changes.
+
+Installing without HACS (copying the files, or from your own git server) is
+described in [docs/INSTALL_AND_PUBLISH.md](docs/INSTALL_AND_PUBLISH.md).
 
 ## Managing controllers
 
