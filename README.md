@@ -153,6 +153,10 @@ switched with plain `turn_on`/`turn_off` (no service data).
 A running fan is remembered across reloads (saving the options) and Home
 Assistant restarts, so it still turns off when its time is up.
 
+The controller entity's details show what they are doing: *Delayed status*
+(Off, Waiting, On (minimum time), On (until the room is empty)) and
+*Delayed until* (when they turn on, or when the minimum time ends).
+
 ### Active hours
 
 `start_time` / `end_time`: outside this window the controller is

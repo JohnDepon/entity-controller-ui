@@ -480,6 +480,9 @@ class Model:
             self.update(hold_sensor_entities=self.holdSensorEntities)
         if self.overrideEntities:
             self.update(override_entities=self.overrideEntities)
+        if self.delayedEntities:
+            self.update(delayed_entities=self.delayedEntities)
+            self._delayed_status("off")
         # Before the initial transition, so resuming 'active' does not start
         # the delayed entities again.
         self._delayed_restore()
@@ -1415,11 +1418,24 @@ class Model:
             self._delayed_handle()
             self._delayed_handle = None
 
+    def _delayed_status(self, status: str, until: datetime | None = None) -> None:
+        """Show what the delayed entities are doing (entity attributes):
+        off, waiting (until = turn-on time), running (until = end of the
+        minimum time) or running_until_idle."""
+        attributes = self.entity.attributes
+        attributes["delayed_status"] = status
+        if until is None:
+            attributes.pop("delayed_until", None)
+        else:
+            attributes["delayed_until"] = dt.as_local(until)
+        self.entity.do_update()
+
     def _delayed_start(self):
         if self.delayedEntities and not self._delayed_running and self._delayed_handle is None:
             self._delayed_handle = event.async_call_later(
                 self.hass, self.delayed_after, self._delayed_turn_on
             )
+            self._delayed_status("waiting", dt.utcnow() + timedelta(seconds=self.delayed_after))
 
     @callback
     def _delayed_turn_on(self, _now=None):
@@ -1432,6 +1448,9 @@ class Model:
             for e in self.delayedEntities
             if not self.matches(self._entity_state(e, "Delayed"), self.CONTROL_ON_STATE)
         ]
+        if not self._delayed_running:
+            self._delayed_status("off")
+            return
         for e in self._delayed_running:
             self.call_service(e, "turn_on")
         self._delayed_schedule_min(self.delayed_min_on)
@@ -1442,6 +1461,7 @@ class Model:
         self._delayed_handle = event.async_call_later(
             self.hass, seconds, self._delayed_min_expired
         )
+        self._delayed_status("running", self._delayed_min_until)
 
     @callback
     def _delayed_min_expired(self, _now=None):
@@ -1450,11 +1470,15 @@ class Model:
         self._delayed_min_until = None
         if not self.is_active(allow_substates=True):
             self._delayed_turn_off()
+        else:
+            self._delayed_status("running_until_idle")
 
     def _delayed_exit(self):
         """The controller leaves active (nobody there any more)."""
         if not self._delayed_running:
-            self._cancel_delayed()  # left before delayed_after: never turn on
+            if self._delayed_handle is not None:
+                self._cancel_delayed()  # left before delayed_after: never turn on
+                self._delayed_status("off")
         elif self._delayed_min_done:
             self._delayed_turn_off()
         # else: _delayed_min_expired turns them off
@@ -1463,6 +1487,7 @@ class Model:
         for e in self._delayed_running:
             self.call_service(e, "turn_off")
         self._delayed_running = []
+        self._delayed_status("off")
 
     def delayed_restore_data(self) -> dict[str, Any]:
         """Running delayed entities, saved by the entity across reloads and restarts."""

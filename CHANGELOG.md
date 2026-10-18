@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="10.1.2"></a>
+## 10.1.2 (2026-10-18)
+
+### Features
+
+* The controller entity shows what its delayed entities are doing: *Delayed
+  entities*, *Delayed status* (off, waiting, on for the minimum time, on until
+  the room is empty) and *Delayed until* (turn-on time or end of the minimum
+  time). They stay visible while the controller is idle.
+
+### Bug Fixes
+
+* If every delayed entity was already on when the turn-on time was reached,
+  a minimum-time timer was started for nothing.
+
 <a name="10.1.1"></a>
 ## 10.1.1 (2026-10-18)
 

@@ -348,6 +348,19 @@ def build() -> dict:
                     "overridden": "Overridden",
                     "constrained": "Outside active hours",
                 },
+                "state_attributes": {
+                    "delayed_entities": {"name": "Delayed entities"},
+                    "delayed_until": {"name": "Delayed until"},
+                    "delayed_status": {
+                        "name": "Delayed status",
+                        "state": {
+                            "off": "Off",
+                            "waiting": "Waiting (someone present)",
+                            "running": "On (minimum time)",
+                            "running_until_idle": "On (until the room is empty)",
+                        },
+                    },
+                },
             }
         },
         "entity": {

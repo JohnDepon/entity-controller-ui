@@ -65,6 +65,10 @@ PERSISTED_STATE_ATTRIBUTES = [
     CONF_START_TIME,
     CONF_END_TIME,
     "stay_mode",
+    # Delayed entities may keep running while the controller is idle.
+    "delayed_entities",
+    "delayed_status",
+    "delayed_until",
 ]
 
 ICONS = {

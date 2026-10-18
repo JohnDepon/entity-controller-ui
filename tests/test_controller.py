@@ -500,19 +500,30 @@ DELAYED = {"sensor_type": "duration", "delay": 60, "delayed_entities": [FAN], "d
 
 async def test_delayed_fan_runs_min_time_after_leaving(hass, freezer, entities):
     await setup_controller(hass, freezer, **DELAYED)
+
+    def status():
+        attrs = hass.states.get(EC).attributes
+        return attrs.get("delayed_status"), attrs.get("delayed_until")
+
+    assert hass.states.get(EC).attributes["delayed_entities"] == [FAN]
+    assert status() == ("off", None)
     await set_state(hass, MOTION, "on")
+    assert status()[0] == "waiting" and status()[1] is not None
     await advance(hass, freezer, 119)
     assert state(hass, FAN) == "off"
     await advance(hass, freezer, 2)  # stayed longer than 120 s
     assert state(hass, FAN) == "on"
+    assert status()[0] == "running"
 
     await set_state(hass, MOTION, "off")  # leave: light off, fan keeps running
     assert state(hass, LIGHT) == "off"
     assert state(hass, FAN) == "on"
+    assert status()[0] == "running"  # still shown while the controller is idle
     await advance(hass, freezer, 298)
     assert state(hass, FAN) == "on"
     await advance(hass, freezer, 3)  # 300 s after it was turned on
     assert state(hass, FAN) == "off"
+    assert status() == ("off", None)
 
 
 async def test_delayed_fan_not_started_when_leaving_early(hass, freezer, entities):
@@ -532,6 +543,7 @@ async def test_delayed_fan_stays_on_while_still_there(hass, freezer, entities):
     await advance(hass, freezer, 121)
     await advance(hass, freezer, 480)  # well past the 300 s minimum, still there
     assert state(hass, FAN) == "on"
+    assert hass.states.get(EC).attributes["delayed_status"] == "running_until_idle"
     await set_state(hass, MOTION, "off")  # nobody there any more
     assert state(hass, LIGHT) == "off"
     assert state(hass, FAN) == "off"
@@ -558,3 +570,4 @@ async def test_delayed_fan_already_on_is_left_alone(hass, freezer, entities):
     await set_state(hass, MOTION, "off")
     await advance(hass, freezer, 600)
     assert state(hass, FAN) == "on"
+    assert hass.states.get(EC).attributes["delayed_status"] == "off"
