@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+<a name="10.1.1"></a>
+## 10.1.1 (2026-10-18)
+
+### Bug Fixes
+
+* The Service data form showed "Translation error: MALFORMED_ARGUMENT"
+  instead of its description: the template example in the text contained
+  braces, which the frontend reads as placeholders. The example is now
+  passed as a placeholder value, and a test checks all UI texts for stray
+  braces.
+
 <a name="10.1.0"></a>
 ## 10.1.0 (2026-10-18)
 

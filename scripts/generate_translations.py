@@ -129,8 +129,8 @@ SECTIONS = {
             "Extra data passed to the turn_on and turn_off service calls, e.g. "
             "`brightness_pct: 50` or `transition: 2`. All controlled entities must "
             "support the given keys. Values can be templates that depend on other "
-            "entities, e.g. `brightness_pct: \"{{ 50 if is_state('input_boolean.dnd', "
-            "'on') else 100 }}\"`; they are evaluated each time the entities are switched."
+            "entities, e.g. `{template_example}`; they are evaluated each time the "
+            "entities are switched."
         ),
         "data": {
             "service_data": "turn_on service data",

@@ -140,3 +140,33 @@ async def test_disable_and_remove_entry(hass, freezer, entities):
     assert controller_device(hass, entry) is None
     assert er.async_get(hass).async_get(EC) is None
     assert hass.states.get(EC) is None
+
+
+def test_translations_only_use_simple_placeholders():
+    """The frontend parses UI texts as ICU messages: a literal brace (e.g. a
+    template example) breaks the whole text ("Translation error")."""
+    import re
+
+    path = MANIFEST.parent / "translations" / "en.json"
+
+    def texts(node):
+        if isinstance(node, dict):
+            for value in node.values():
+                yield from texts(value)
+        elif isinstance(node, str):
+            yield node
+
+    for text in texts(json.loads(path.read_text(encoding="utf-8"))):
+        assert re.sub(r"\{\w+\}", "", text).count("{") == 0, text
+        assert re.sub(r"\{\w+\}", "", text).count("}") == 0, text
+
+
+async def test_service_data_form_gets_template_example(hass, entities):
+    from homeassistant import config_entries
+
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"name": "X", "sensors": [MOTION], "sensor_type": "event", "delay": 10}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"next_step_id": "service_data"})
+    assert "{{" in result["description_placeholders"]["template_example"]

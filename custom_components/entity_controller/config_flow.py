@@ -90,6 +90,8 @@ from .options import complete_options, default_options, normalize_time_string, v
 
 CONF_NAME = "name"
 
+TEMPLATE_EXAMPLE = "brightness_pct: \"{{ 50 if is_state('input_boolean.dnd', 'on') else 100 }}\""
+
 # Attributes that commonly change without anybody touching the light.
 COMMON_IGNORED_ATTRIBUTES = [
     "brightness",
@@ -585,6 +587,8 @@ class _ControllerSteps:
             data_schema=self.add_suggested_values_to_schema(schema, values),
             errors=errors or {},
             last_step=False,
+            # Literal braces are not allowed in translations (ICU placeholders).
+            description_placeholders={"template_example": TEMPLATE_EXAMPLE},
         )
 
     async def _async_section(self, name: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
